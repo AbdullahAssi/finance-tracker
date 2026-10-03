@@ -1,0 +1,1 @@
+Built my own expense tracker: tap +, type the amount, pick a category, done in about 4 seconds. Every entry syncs into a Google Sheet I own, with no sign-in and no finance app holding my data, and it works offline.
