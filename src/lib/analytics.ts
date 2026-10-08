@@ -1,5 +1,5 @@
 import { MONTHS_SHORT, currentMonthKey, shiftMonth, todayISO } from './format';
-import type { Transaction } from './types';
+import type { Category, Transaction } from './types';
 
 export const daysInMonth = (month: string) => {
   const [y, m] = month.split('-').map(Number);
@@ -62,6 +62,43 @@ export function categoryBreakdown(txs: Transaction[], month: string, top = 5): S
   if (sorted.length <= top + 1) return sorted;
   const rest = sorted.slice(top).reduce((n, s) => n + s.value, 0);
   return [...sorted.slice(0, top), { name: 'Other categories', value: rest }];
+}
+
+/** Expense total per category name for one month. */
+export function spendByCategory(txs: Transaction[], month: string) {
+  const map = new Map<string, number>();
+  for (const t of txs) {
+    if (t.type === 'expense' && t.date.startsWith(month)) map.set(t.category, (map.get(t.category) ?? 0) + t.amount);
+  }
+  return map;
+}
+
+export type BudgetLevel = 'ok' | 'near' | 'over';
+
+export interface BudgetStatus {
+  category: Category;
+  spent: number;
+  budget: number;
+  /** spent / budget, can exceed 1 */
+  ratio: number;
+  remaining: number;
+  level: BudgetLevel;
+}
+
+export const budgetLevel = (ratio: number): BudgetLevel => (ratio >= 1 ? 'over' : ratio >= 0.8 ? 'near' : 'ok');
+
+/** Categories that have a budget, most used first. */
+export function budgetStatuses(txs: Transaction[], categories: Category[], month: string): BudgetStatus[] {
+  const spend = spendByCategory(txs, month);
+  return categories
+    .filter((c) => (c.budget ?? 0) > 0)
+    .map((category) => {
+      const spent = spend.get(category.name) ?? 0;
+      const budget = category.budget as number;
+      const ratio = spent / budget;
+      return { category, spent, budget, ratio, remaining: budget - spent, level: budgetLevel(ratio) };
+    })
+    .sort((a, b) => b.ratio - a.ratio);
 }
 
 /** 1, 2, 5 × 10^n ceiling, for friendly axis maximums. */

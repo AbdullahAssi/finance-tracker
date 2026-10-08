@@ -1,4 +1,6 @@
-# Connect the app to Google Sheets
+# Connect the app to Google Sheets (advanced, optional)
+
+> **Most people don't need this.** The app works fully on its own, and **Settings → Sync & Backup → Sync through a folder** shares data between phones with no setup. Use this only if you want your transactions in a Google Sheet you can open and edit.
 
 The app keeps a copy of your data on the phone and syncs it with a Google Sheet through a small
 Apps Script web app that lives inside your own sheet. No Google Cloud project or sign-in is needed.

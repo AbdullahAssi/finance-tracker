@@ -4,6 +4,11 @@ import { DEFAULT_ICON } from './constants';
 export interface SheetData {
   transactions: Transaction[];
   categories: Category[];
+  /**
+   * False when the deployed script predates budgets and returns categories without a `budget` field.
+   * The app then keeps its local budgets instead of wiping them on sync.
+   */
+  categoriesHaveBudget: boolean;
 }
 
 const normalizeTx = (r: any): Transaction => ({
@@ -40,13 +45,19 @@ export async function callSheet(url: string, token: string, ops: Op[]): Promise<
       throw new Error('Unexpected reply from the sheet. Re-deploy the script with access set to "Anyone".');
     }
     if (!json.ok) throw new Error(json.error || 'The sheet reported an error.');
+    const rawCategories = json.categories as any[];
     return {
       transactions: (json.transactions as any[]).map(normalizeTx),
-      categories: (json.categories as any[]).map((c) => ({
-        id: String(c.id),
-        name: String(c.name),
-        icon: String(c.icon || DEFAULT_ICON),
-      })),
+      categories: rawCategories.map((c) => {
+        const budget = Number(c.budget);
+        return {
+          id: String(c.id),
+          name: String(c.name),
+          icon: String(c.icon || DEFAULT_ICON),
+          ...(budget > 0 ? { budget } : {}),
+        };
+      }),
+      categoriesHaveBudget: rawCategories.length === 0 || 'budget' in rawCategories[0],
     };
   } catch (e: any) {
     if (e?.name === 'AbortError') throw new Error('The sheet took too long to respond.');

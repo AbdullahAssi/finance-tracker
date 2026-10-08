@@ -9,7 +9,7 @@
 var SECRET = '';
 
 var TX_HEADERS = ['id', 'type', 'amount', 'date', 'category', 'method', 'note', 'updatedAt'];
-var CAT_HEADERS = ['id', 'name', 'icon'];
+var CAT_HEADERS = ['id', 'name', 'icon', 'budget'];
 // Columns stored as plain text so Sheets never turns dates or notes into other types
 var TX_TEXT_COLS = [1, 2, 4, 5, 6, 7];
 var CAT_TEXT_COLS = [1, 2, 3];
@@ -76,6 +76,12 @@ function getSheet_(ss, name, headers) {
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
     sheet.setFrozenRows(1);
+  } else {
+    // Upgrade older sheets in place when a new column (e.g. budget) has been added
+    var current = sheet.getRange(1, 1, 1, headers.length).getValues()[0];
+    if (current.join('|') !== headers.join('|')) {
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+    }
   }
   return sheet;
 }

@@ -45,6 +45,15 @@ export const addDays = (s: string, days: number) => {
   return toISO(d);
 };
 
+/** The date after `date` in a weekly or monthly series (monthly keeps to `anchorDay`, clamped to short months). */
+export const nextInSeries = (frequency: 'weekly' | 'monthly', anchorDay: number, date: string) => {
+  if (frequency === 'weekly') return addDays(date, 7);
+  const d = fromISO(date);
+  const nextMonth = d.getMonth() + 1;
+  const daysInNext = new Date(d.getFullYear(), nextMonth + 1, 0).getDate();
+  return toISO(new Date(d.getFullYear(), nextMonth, Math.min(anchorDay, daysInNext)));
+};
+
 /** Monday of the week containing the date. */
 export const startOfWeek = (s: string) => {
   const d = fromISO(s);
