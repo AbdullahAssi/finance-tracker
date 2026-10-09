@@ -1,5 +1,6 @@
 import { ComponentProps } from 'react';
 import { StyleSheet, Text as RNText, TextInput as RNTextInput } from 'react-native';
+import { colors } from '../lib/theme';
 
 /**
  * Inter, the typeface used by most finance and banking apps.
@@ -36,10 +37,17 @@ const familyFor = (style: TextProps['style']) => {
 };
 
 // fontWeight is reset to normal because the weight is already baked into the chosen font file
+// The default colour follows the theme, so text that doesn't set one is never black on a dark background
 export function Text({ style, ...rest }: TextProps) {
-  return <RNText {...rest} style={[style, { fontFamily: familyFor(style), fontWeight: 'normal' }]} />;
+  return <RNText {...rest} style={[{ color: colors.text }, style, { fontFamily: familyFor(style), fontWeight: 'normal' }]} />;
 }
 
 export function TextInput({ style, ...rest }: InputProps) {
-  return <RNTextInput {...rest} style={[style, { fontFamily: familyFor(style), fontWeight: 'normal' }]} />;
+  return (
+    <RNTextInput
+      selectionColor={colors.skyDeep}
+      {...rest}
+      style={[{ color: colors.text }, style, { fontFamily: familyFor(style), fontWeight: 'normal' }]}
+    />
+  );
 }

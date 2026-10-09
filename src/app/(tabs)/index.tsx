@@ -6,11 +6,13 @@ import { Text } from '../../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, EmptyState, Icon, IconBubble, MonthPicker, SectionTitle, TAB_SPACE, TxRow } from '../../components/ui';
 import { IncomeExpenseChart, TrendChart } from '../../components/charts';
-import { dailySeries, daysInMonth, lastMonths } from '../../lib/analytics';
+import { levelColor } from '../../components/BudgetRow';
+import { budgetLevel, dailySeries, daysInMonth, lastMonths, spendByCategory } from '../../lib/analytics';
+import { DEFAULT_ICON } from '../../lib/constants';
 import { usePullSync } from '../../lib/usePullSync';
 import { monthLabel, number } from '../../lib/format';
 import { inMonth, newestFirst, totals, useStore } from '../../lib/store';
-import { colors, radius, shadow } from '../../lib/theme';
+import { colors, radius, shadow, themedStyles } from '../../lib/theme';
 
 function SyncIcon({ name, spinning }: { name: string; spinning: boolean }) {
   const rotation = useRef(new Animated.Value(0)).current;
@@ -46,7 +48,7 @@ function Kpi({ icon, label, value }: { icon: string; label: string; value: strin
 }
 
 export default function Dashboard() {
-  const { txs, categories, currency, month, setMonth, pending, syncStatus, sheetUrl } = useStore();
+  const { txs, categories, currency, month, setMonth, pending, syncStatus, syncEnabled } = useStore();
   const insets = useSafeAreaInsets();
   const { refreshing, onRefresh } = usePullSync();
   const [pickMonth, setPickMonth] = useState(false);
@@ -62,11 +64,24 @@ export default function Dashboard() {
     return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   }, [monthTxs]);
 
+  // Cards for anything spent this month, plus any budgeted category even if nothing is spent yet
+  const cards = useMemo(() => {
+    const spend = spendByCategory(txs, month);
+    const names = new Set([...spend.keys(), ...categories.filter((c) => c.budget).map((c) => c.name)]);
+    return [...names]
+      .map((name) => {
+        const cat = categories.find((c) => c.name === name);
+        return { name, icon: cat?.icon ?? DEFAULT_ICON, spent: spend.get(name) ?? 0, budget: cat?.budget };
+      })
+      .sort((a, b) => b.spent - a.spent)
+      .slice(0, 10);
+  }, [txs, categories, month]);
+
   const daily = useMemo(() => dailySeries(txs, month), [txs, month]);
   const trend = useMemo(() => lastMonths(txs, month, 6), [txs, month]);
 
   const syncIcon =
-    !sheetUrl ? 'cloud-outline'
+    !syncEnabled ? 'lock-closed-outline'
     : syncStatus === 'syncing' ? 'sync-outline'
     : syncStatus === 'error' ? 'cloud-offline-outline'
     : pending.length > 0 ? 'cloud-upload-outline'
@@ -76,7 +91,7 @@ export default function Dashboard() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <LinearGradient colors={[colors.sky, colors.skyLight, colors.bg]} style={s.gradient} />
+      <LinearGradient colors={[colors.headerA, colors.headerB, colors.bg]} style={s.gradient} />
       <ScrollView
         contentContainerStyle={{ paddingTop: insets.top + 12, paddingHorizontal: 16, paddingBottom: TAB_SPACE + insets.bottom }}
         showsVerticalScrollIndicator={false}
@@ -93,7 +108,7 @@ export default function Dashboard() {
       >
         <View style={s.topRow}>
           <Text style={s.brand}>Expense Tracker</Text>
-          <Pressable onPress={() => router.push('/sheet')} style={s.roundBtn} accessibilityLabel="Google Sheet sync">
+          <Pressable onPress={() => router.push('/sync')} style={s.roundBtn} accessibilityLabel="Sync and backup">
             <SyncIcon name={syncIcon} spinning={syncStatus === 'syncing'} />
           </Pressable>
         </View>
@@ -134,23 +149,26 @@ export default function Dashboard() {
           <Kpi icon="ribbon-outline" label="Top spend" value={byCategory[0]?.[0] ?? '—'} />
         </View>
 
-        {byCategory.length > 0 && (
+        {cards.length > 0 && (
           <>
             <SectionTitle title="Spending by Category" action="Details" onAction={() => router.push('/chart')} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 12, paddingBottom: 8 }}>
-              {byCategory.map(([name, amount]) => {
-                const pct = expense > 0 ? amount / expense : 0;
-                const icon = categories.find((c) => c.name === name)?.icon ?? 'ellipsis-horizontal-circle-outline';
+              {cards.map(({ name, icon, spent, budget }) => {
+                // With a budget the bar shows progress toward the limit; otherwise the share of total spending
+                const ratio = budget ? spent / budget : expense > 0 ? spent / expense : 0;
+                const barColor = budget ? levelColor(budgetLevel(ratio)) : colors.sky;
                 return (
                   <Card key={name} style={s.catCard}>
                     <IconBubble name={icon} size={36} />
                     <Text style={s.catName} numberOfLines={1}>{name}</Text>
                     <View style={s.track}>
-                      <View style={[s.fill, { width: `${Math.max(pct * 100, 4)}%` }]} />
+                      <View style={[s.fill, { width: `${Math.min(Math.max(ratio, 0.04), 1) * 100}%`, backgroundColor: barColor }]} />
                     </View>
                     <View style={s.catFoot}>
-                      <Text style={s.catAmount}>{number(amount, 0)}</Text>
-                      <Text style={s.catPct}>{Math.round(pct * 100)}%</Text>
+                      <Text style={s.catAmount}>{number(spent, 0)}</Text>
+                      <Text style={[s.catPct, budget && ratio >= 0.8 ? { color: barColor, fontWeight: '700' } : null]}>
+                        {budget ? `of ${number(budget, 0)}` : `${Math.round(ratio * 100)}%`}
+                      </Text>
                     </View>
                   </Card>
                 );
@@ -192,13 +210,13 @@ export default function Dashboard() {
       </ScrollView>
       {/* Solid strip behind the status bar so scrolled content never collides with the clock/battery icons.
           Matches the top colour of the gradient, so it is invisible until content scrolls under it. */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.sky }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.headerA }} />
       <MonthPicker visible={pickMonth} value={month} onSelect={setMonth} onClose={() => setPickMonth(false)} />
     </View>
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   gradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 420 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 },
   brand: { fontSize: 24, fontWeight: '800', color: colors.white, letterSpacing: -0.3 },
@@ -233,4 +251,4 @@ const s = StyleSheet.create({
   catFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   catAmount: { fontSize: 18, fontWeight: '800', color: colors.text },
   catPct: { fontSize: 12, color: colors.muted },
-});
+}));

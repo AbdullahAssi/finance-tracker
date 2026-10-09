@@ -8,7 +8,7 @@ import { PAYMENT_METHODS } from '../lib/constants';
 import { RANGE_LABELS } from '../lib/filter';
 import { fmtDate, fromISO, toISO } from '../lib/format';
 import { defaultFilters, useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 import type { DateRange, Filters } from '../lib/types';
 
 const TYPES: { label: string; value: Filters['type'] }[] = [
@@ -104,9 +104,9 @@ export default function FiltersScreen() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   group: { fontSize: 13, fontWeight: '700', color: colors.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 16, marginBottom: 10 },
   card: { paddingVertical: 6 },
   radioRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11 },
   radioLabel: { fontSize: 15.5, color: colors.text, fontWeight: '500' },
-});
+}));

@@ -1,26 +1,37 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../components/Text';
-import { Card, Icon, PrimaryButton, Screen, SecondaryButton, TextField } from '../components/ui';
+import { confirmDialog } from '../components/Dialogs';
+import { Card, Icon, PrimaryButton, Screen, SecondaryButton, TextField, toast } from '../components/ui';
 import { useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 
+/** Advanced option: sync with your own Google Sheet through an Apps Script web app. */
 export default function SheetScreen() {
-  const { sheetUrl, token, setSettings, sync, syncStatus, syncError, pending, lastSync } = useStore();
-  const [url, setUrl] = useState(sheetUrl);
-  const [secret, setSecret] = useState(token);
+  const { syncProvider, sheetUrl, token, connectScript, disconnectSync, sync, syncStatus, syncError, pending, lastSync } = useStore();
+  const connected = syncProvider === 'script' && !!sheetUrl;
+  const [url, setUrl] = useState(connected ? sheetUrl : '');
+  const [secret, setSecret] = useState(connected ? token : '');
 
-  const connected = !!sheetUrl;
   const dirty = url.trim() !== sheetUrl || secret.trim() !== token;
 
-  const save = () => {
-    setSettings({ sheetUrl: url.trim(), token: secret.trim() });
-    // Let the new settings land in state before pulling
-    setTimeout(() => sync(), 50);
+  const save = async () => {
+    if (syncProvider === 'folder') {
+      const ok = await confirmDialog({
+        title: 'Switch to Google Sheet?',
+        message: 'Folder sync will be turned off. Your data stays on this phone and in the folder.',
+        confirmLabel: 'Switch',
+        icon: 'swap-horizontal-outline',
+      });
+      if (!ok) return;
+    }
+    connectScript(url.trim(), secret.trim());
+    toast('Connecting…');
   };
 
   const statusLine = !connected
-    ? 'Not connected. Entries are saved on this phone only.'
+    ? 'Not connected.'
     : syncStatus === 'syncing'
       ? 'Syncing…'
       : syncStatus === 'error'
@@ -31,20 +42,18 @@ export default function SheetScreen() {
             ? `All synced. Last sync ${new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`
             : 'Connected.';
 
-  const statusColor = syncStatus === 'error' ? colors.expense : colors.muted;
-
   return (
     <Screen>
       <Card style={{ gap: 6 }}>
         <View style={s.statusRow}>
           <Icon
-            name={syncStatus === 'error' ? 'cloud-offline-outline' : connected ? 'cloud-done-outline' : 'cloud-outline'}
+            name={syncStatus === 'error' && connected ? 'cloud-offline-outline' : connected ? 'cloud-done-outline' : 'cloud-outline'}
             size={22}
-            color={syncStatus === 'error' ? colors.expense : colors.skyDeep}
+            color={syncStatus === 'error' && connected ? colors.expense : colors.skyDeep}
           />
           <Text style={s.statusTitle}>{connected ? 'Google Sheet' : 'Not connected'}</Text>
         </View>
-        <Text style={[s.statusText, { color: statusColor }]}>{statusLine}</Text>
+        <Text style={[s.statusText, { color: syncStatus === 'error' && connected ? colors.expense : colors.muted }]}>{statusLine}</Text>
       </Card>
 
       <Text style={s.group}>Web app URL</Text>
@@ -69,10 +78,10 @@ export default function SheetScreen() {
       />
 
       <PrimaryButton
-        label={syncStatus === 'syncing' ? 'SYNCING…' : connected && !dirty ? 'SYNC NOW' : 'SAVE & CONNECT'}
+        label={syncStatus === 'syncing' && connected ? 'SYNCING…' : connected && !dirty ? 'SYNC NOW' : 'SAVE & CONNECT'}
         onPress={connected && !dirty ? () => sync() : save}
         disabled={!url.trim()}
-        loading={syncStatus === 'syncing'}
+        loading={syncStatus === 'syncing' && connected}
         style={{ marginTop: 12 }}
       />
       {connected ? (
@@ -80,27 +89,30 @@ export default function SheetScreen() {
           label="Disconnect"
           style={{ marginTop: 10 }}
           onPress={() => {
-            setSettings({ sheetUrl: '', token: '' });
+            disconnectSync();
             setUrl('');
             setSecret('');
+            router.back();
           }}
         />
       ) : null}
 
       <Card style={{ marginTop: 24, gap: 8 }}>
-        <Text style={s.helpTitle}>How it works</Text>
-        <Text style={s.help}>Your transactions are stored in your own Google Sheet. The app keeps a copy on this phone, so you can add entries offline. They upload automatically when you are back online.</Text>
-        <Text style={s.help}>Setup steps are in apps-script/README.md in the project.</Text>
+        <Text style={s.helpTitle}>For spreadsheet fans</Text>
+        <Text style={s.help}>
+          This keeps your transactions in a Google Sheet that you own, so you can open them in Sheets. It takes a one-time setup with a small script; the steps are in apps-script/README.md in the project.
+        </Text>
+        <Text style={s.help}>Most people are better off with folder sync, which needs no setup.</Text>
       </Card>
     </Screen>
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   statusText: { fontSize: 14, lineHeight: 20 },
   group: { fontSize: 13, fontWeight: '700', color: colors.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 18, marginBottom: 10 },
   helpTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   help: { fontSize: 13.5, lineHeight: 19, color: colors.muted },
-});
+}));

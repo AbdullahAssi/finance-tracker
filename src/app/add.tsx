@@ -5,12 +5,17 @@ import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '../components/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Icon, PickRow, PickerModal, PrimaryButton, Segmented, TextField } from '../components/ui';
+import { levelColor } from '../components/BudgetRow';
+import { Icon, PickRow, PickerModal, PrimaryButton, Segmented, TextField, animateNext } from '../components/ui';
+import { budgetLevel, type BudgetLevel } from '../lib/analytics';
 import { INCOME_SOURCES, PAYMENT_METHODS } from '../lib/constants';
 import { fmtDate, fromISO, money, parseAmount, toISO, todayISO } from '../lib/format';
 import { useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 import type { TxType } from '../lib/types';
+
+/** Back if there is somewhere to go back to, otherwise Home (e.g. when opened from a link). */
+const leave = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
 export default function AddScreen() {
   const params = useLocalSearchParams<{ type?: string; id?: string }>();
@@ -28,7 +33,7 @@ export default function AddScreen() {
   const [note, setNote] = useState(editing?.note ?? '');
   const [error, setError] = useState('');
   const [picker, setPicker] = useState<'category' | 'method' | 'source' | null>(null);
-  const [saved, setSaved] = useState<{ title: string; line: string } | null>(null);
+  const [saved, setSaved] = useState<{ title: string; line: string; budget?: { text: string; level: BudgetLevel } } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -63,12 +68,34 @@ export default function AddScreen() {
     if (editing) updateTx(editing.id, data);
     else addTx(data);
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // How this expense affects the category's monthly budget (if it has one)
+    let budget: { text: string; level: BudgetLevel } | undefined;
+    const cat = isExpense ? categories.find((c) => c.name === category) : undefined;
+    if (cat?.budget) {
+      const key = date.slice(0, 7);
+      const others = txs
+        .filter((t) => t.type === 'expense' && t.category === cat.name && t.date.startsWith(key) && t.id !== editing?.id)
+        .reduce((n, t) => n + t.amount, 0);
+      const spent = others + data.amount;
+      const level = budgetLevel(spent / cat.budget);
+      budget = {
+        level,
+        text:
+          level === 'over'
+            ? `Over your ${cat.name} budget by ${money(spent - cat.budget, currency)}`
+            : `${Math.round((spent / cat.budget) * 100)}% of your ${cat.name} budget used`,
+      };
+    }
+
+    Haptics.notificationAsync(
+      budget?.level === 'over' ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Success,
+    ).catch(() => {});
     setSaved({
       title: editing ? 'Transaction updated successfully.' : `${noun} Saved`,
       line: [data.category, data.method].filter(Boolean).join('  •  '),
+      budget,
     });
-    timer.current = setTimeout(() => router.back(), 1400);
+    timer.current = setTimeout(() => leave(), budget && budget.level !== 'ok' ? 2600 : 1400);
   };
 
   if (saved) {
@@ -80,15 +107,27 @@ export default function AddScreen() {
         <Text style={s.savedTitle}>{saved.title}</Text>
         <Text style={s.savedAmount}>{money(parseAmount(amount), currency)}</Text>
         <Text style={s.savedLine}>{saved.line}</Text>
-        <PrimaryButton label="DONE" onPress={() => router.back()} style={{ alignSelf: 'stretch', marginTop: 32 }} />
+        {saved.budget ? (
+          <View style={[s.budgetPill, { backgroundColor: levelColor(saved.budget.level) + '22' }]}>
+            <Icon
+              name={saved.budget.level === 'ok' ? 'speedometer-outline' : 'warning-outline'}
+              size={16}
+              color={saved.budget.level === 'ok' ? colors.skyDeep : levelColor(saved.budget.level)}
+            />
+            <Text style={[s.budgetText, { color: saved.budget.level === 'ok' ? colors.skyDeep : levelColor(saved.budget.level) }]}>
+              {saved.budget.text}
+            </Text>
+          </View>
+        ) : null}
+        <PrimaryButton label="DONE" onPress={() => leave()} style={{ alignSelf: 'stretch', marginTop: 32 }} />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.white }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.card }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[s.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={s.close} accessibilityLabel="Close">
+        <Pressable onPress={() => leave()} hitSlop={12} style={s.close} accessibilityLabel="Close">
           <Icon name="close" size={22} />
         </Pressable>
         <Text style={s.title}>{editing ? `Edit ${noun}` : `Add ${noun}`}</Text>
@@ -106,7 +145,7 @@ export default function AddScreen() {
             { label: 'Income', value: 'income' },
           ]}
           value={type}
-          onChange={setType}
+          onChange={(v) => { animateNext(); setType(v); }}
         />
 
         <View style={s.amountBlock}>
@@ -120,7 +159,7 @@ export default function AddScreen() {
                 setError('');
               }}
               placeholder="0.00"
-              placeholderTextColor="#C3CEDB"
+              placeholderTextColor={colors.faint}
               keyboardType="decimal-pad"
               autoFocus
               style={s.amountInput}
@@ -184,20 +223,22 @@ export default function AddScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8, backgroundColor: colors.white },
+const s = themedStyles(() => StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8, backgroundColor: colors.card },
   close: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.field, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '700', color: colors.text },
   amountBlock: { alignItems: 'center', paddingVertical: 28 },
   amountLabel: { fontSize: 14, color: colors.muted, marginBottom: 6 },
   amountRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 8 },
   currency: { fontSize: 22, fontWeight: '600', color: colors.muted },
-  amountInput: { fontSize: 46, fontWeight: '800', color: colors.text, minWidth: 120, textAlign: 'center', padding: 0 },
+  amountInput: { fontSize: 46, fontWeight: '800', color: colors.text, minWidth: 120, maxWidth: 240, flexShrink: 1, textAlign: 'center', padding: 0 },
   errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   error: { color: colors.expense, fontSize: 14, fontWeight: '500' },
-  savedWrap: { flex: 1, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center', padding: 28 },
+  savedWrap: { flex: 1, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', padding: 28 },
   check: { width: 96, height: 96, borderRadius: 48, backgroundColor: colors.skyDeep, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   savedTitle: { fontSize: 22, fontWeight: '800', color: colors.text, textAlign: 'center' },
   savedAmount: { fontSize: 34, fontWeight: '800', color: colors.skyDeep, marginTop: 10 },
   savedLine: { fontSize: 15, color: colors.muted, marginTop: 6 },
-});
+  budgetPill: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999 },
+  budgetText: { fontSize: 13.5, fontWeight: '600', flexShrink: 1 },
+}));

@@ -7,10 +7,10 @@ import { confirmDialog } from '../components/Dialogs';
 import { Card, PrimaryButton, Screen, toast } from '../components/ui';
 import { DEFAULT_ICON } from '../lib/constants';
 import { useStore } from '../lib/store';
-import { colors } from '../lib/theme';
-import type { Category, Transaction } from '../lib/types';
+import { colors, themedStyles } from '../lib/theme';
+import type { Category, Recurring, Transaction } from '../lib/types';
 
-function parseBackup(text: string): { txs: Transaction[]; categories: Category[] } {
+function parseBackup(text: string): { txs: Transaction[]; categories: Category[]; recurring?: Recurring[] } {
   const data = JSON.parse(text);
   if (!Array.isArray(data?.transactions) || !Array.isArray(data?.categories)) throw new Error('bad shape');
   const txs: Transaction[] = data.transactions.map((t: any) => ({
@@ -23,12 +23,33 @@ function parseBackup(text: string): { txs: Transaction[]; categories: Category[]
     note: String(t.note ?? ''),
     updatedAt: Number(t.updatedAt) || Date.now(),
   }));
-  const categories: Category[] = data.categories.map((c: any) => ({
-    id: String(c.id),
-    name: String(c.name),
-    icon: String(c.icon || DEFAULT_ICON),
-  }));
-  return { txs, categories };
+  const categories: Category[] = data.categories.map((c: any) => {
+    const budget = Number(c.budget);
+    return {
+      id: String(c.id),
+      name: String(c.name),
+      icon: String(c.icon || DEFAULT_ICON),
+      ...(budget > 0 ? { budget } : {}),
+    };
+  });
+  // Older backups have no recurring rules; keep the ones already on this phone in that case
+  const recurring: Recurring[] | undefined = Array.isArray(data.recurring)
+    ? data.recurring
+        .filter((r: any) => r && r.id && /^\d{4}-\d{2}-\d{2}$/.test(String(r.nextDate)))
+        .map((r: any) => ({
+          id: String(r.id),
+          type: r.type === 'income' ? 'income' : 'expense',
+          amount: Number(r.amount) || 0,
+          category: String(r.category ?? ''),
+          method: String(r.method ?? ''),
+          note: String(r.note ?? ''),
+          frequency: r.frequency === 'weekly' ? 'weekly' : 'monthly',
+          anchorDay: Number(r.anchorDay) || Number(String(r.nextDate).slice(8, 10)) || 1,
+          nextDate: String(r.nextDate),
+          active: r.active !== false,
+        }))
+    : undefined;
+  return { txs, categories, recurring };
 }
 
 export default function Restore() {
@@ -47,7 +68,7 @@ export default function Restore() {
         icon: 'cloud-download-outline',
       });
       if (!ok) return;
-      restoreAll(backup.txs, backup.categories);
+      restoreAll(backup.txs, backup.categories, backup.recurring);
       toast('Data restored successfully.');
       router.back();
     } catch {
@@ -65,6 +86,6 @@ export default function Restore() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   text: { fontSize: 15, lineHeight: 22, color: colors.text },
-});
+}));

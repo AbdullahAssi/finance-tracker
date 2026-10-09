@@ -6,7 +6,7 @@ import { Card, PickRow, PrimaryButton, Screen, toast } from '../components/ui';
 import { shareTextFile, toCsv } from '../lib/files';
 import { fmtDate, fromISO, monthRange, toISO } from '../lib/format';
 import { newestFirst, useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 
 export default function Export() {
   const { txs, currency, month } = useStore();
@@ -47,7 +47,7 @@ export default function Export() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   group: { fontSize: 13, fontWeight: '700', color: colors.muted, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
   text: { fontSize: 14, lineHeight: 20, color: colors.muted },
-});
+}));

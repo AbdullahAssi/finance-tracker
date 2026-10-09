@@ -4,10 +4,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../../components/Text';
 import { Card, EmptyState, Icon, IconBubble, Screen, SectionTitle, TAB_SPACE } from '../../components/ui';
 import { DonutChart } from '../../components/charts';
-import { categoryBreakdown } from '../../lib/analytics';
+import { BudgetRow } from '../../components/BudgetRow';
+import { budgetStatuses, categoryBreakdown } from '../../lib/analytics';
 import { monthLabel, number, shiftMonth } from '../../lib/format';
 import { inMonth, totals, useStore } from '../../lib/store';
-import { colors } from '../../lib/theme';
+import { colors, themedStyles } from '../../lib/theme';
 
 export default function Summary() {
   const { txs, categories, currency, month, setMonth } = useStore();
@@ -19,6 +20,8 @@ export default function Summary() {
     monthTxs.filter((t) => t.type === 'expense').forEach((t) => map.set(t.category, (map.get(t.category) ?? 0) + t.amount));
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [monthTxs]);
+
+  const budgets = useMemo(() => budgetStatuses(txs, categories, month), [txs, categories, month]);
 
   return (
     <Screen bottom={TAB_SPACE + 20}>
@@ -57,6 +60,26 @@ export default function Summary() {
         </Card>
       </View>
 
+      <SectionTitle title="Budgets" action={budgets.length ? 'Manage' : undefined} onAction={() => router.push('/categories')} />
+      {budgets.length === 0 ? (
+        <Pressable onPress={() => router.push('/categories')}>
+          <Card style={s.budgetHint}>
+            <IconBubble name="speedometer-outline" size={42} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.catName}>Set monthly budgets</Text>
+              <Text style={s.hint}>Add a limit to a category and track how much is left.</Text>
+            </View>
+            <Icon name="chevron-forward" size={18} color={colors.muted} />
+          </Card>
+        </Pressable>
+      ) : (
+        <Card style={{ paddingVertical: 4 }}>
+          {budgets.map((b) => (
+            <BudgetRow key={b.category.id} status={b} currency={currency} />
+          ))}
+        </Card>
+      )}
+
       <SectionTitle title="Expense by Category" action={byCategory.length ? 'View chart' : undefined} onAction={() => router.push('/chart')} />
       {byCategory.length === 0 ? (
         <Card>
@@ -85,9 +108,11 @@ export default function Summary() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
+  budgetHint: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  hint: { fontSize: 13, color: colors.muted, marginTop: 2 },
   switcher: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 16 },
-  arrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  arrow: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   month: { fontSize: 18, fontWeight: '700', color: colors.text, minWidth: 160, textAlign: 'center' },
   big: { alignItems: 'center', paddingVertical: 22, gap: 6 },
   bigLabel: { fontSize: 14, color: colors.muted },
@@ -99,4 +124,4 @@ const s = StyleSheet.create({
   catRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
   catName: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
   catAmount: { fontSize: 15, fontWeight: '700', color: colors.text },
-});
+}));

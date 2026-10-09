@@ -1,8 +1,8 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Fragment, useEffect, useState } from 'react';
+import { StyleSheet, useColorScheme, View } from 'react-native';
 import {
   Inter_400Regular,
   Inter_500Medium,
@@ -15,9 +15,10 @@ import { FONT, Text } from '../components/Text';
 import { DialogHost } from '../components/Dialogs';
 import { Icon } from '../components/icon';
 import { Splash } from '../components/Splash';
+import { Welcome } from '../components/Welcome';
 import { PrimaryButton } from '../components/ui';
 import { StoreProvider, useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { applyTheme, colors, themedStyles, type Scheme } from '../lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -27,7 +28,9 @@ const MIN_SPLASH_MS = 1200;
 const detail = (title: string) => ({ headerShown: true, title });
 
 function Root() {
-  const { loaded } = useStore();
+  const { loaded, themeMode, onboarded, completeOnboarding } = useStore();
+  const systemScheme = useColorScheme();
+  const scheme: Scheme = themeMode === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themeMode;
   const [minElapsed, setMinElapsed] = useState(false);
   const [fontsGiveUp, setFontsGiveUp] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
@@ -56,9 +59,23 @@ function Root() {
     return <Splash onReady={() => SplashScreen.hideAsync().catch(() => {})} />;
   }
 
+  // Switch the shared palette before anything below renders. The key remounts the whole tree when the
+  // theme changes, which is what makes every screen pick up the new colours.
+  applyTheme(scheme);
+
+  // First launch: a short welcome that explains the privacy model before anything is stored
+  if (!onboarded) {
+    return (
+      <Fragment key={`welcome-${scheme}`}>
+        <StatusBar style="light" />
+        <Welcome onDone={completeOnboarding} />
+      </Fragment>
+    );
+  }
+
   return (
-    <>
-      <StatusBar style="dark" />
+    <Fragment key={scheme}>
+      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -76,14 +93,18 @@ function Root() {
         <Stack.Screen name="filters" options={detail('Filters')} />
         <Stack.Screen name="chart" options={detail('Expense Breakdown')} />
         <Stack.Screen name="categories" options={detail('Categories')} />
+        <Stack.Screen name="sync" options={detail('Sync & Backup')} />
+        <Stack.Screen name="privacy" options={detail('Privacy & Data')} />
         <Stack.Screen name="sheet" options={detail('Google Sheet')} />
         <Stack.Screen name="backup" options={detail('Backup Data')} />
         <Stack.Screen name="restore" options={detail('Restore Data')} />
         <Stack.Screen name="export" options={detail('Export Transactions')} />
         <Stack.Screen name="currency" options={detail('Currency')} />
+        <Stack.Screen name="recurring" options={detail('Recurring')} />
+        <Stack.Screen name="recurring-form" options={detail('Recurring')} />
       </Stack>
       <DialogHost />
-    </>
+    </Fragment>
   );
 }
 
@@ -112,10 +133,10 @@ export default function Layout() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   errorWrap: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 28 },
-  errorIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#FDECEF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  errorIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.dangerTint, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   errorTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
   errorText: { fontSize: 14.5, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 8 },
   errorDetail: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12, opacity: 0.8 },
-});
+}));

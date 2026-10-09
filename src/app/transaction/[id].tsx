@@ -5,7 +5,7 @@ import { confirmDialog } from '../../components/Dialogs';
 import { Card, EmptyState, IconBubble, PrimaryButton, Screen, SecondaryButton, signedAmount, toast } from '../../components/ui';
 import { fmtLongDate } from '../../lib/format';
 import { useStore } from '../../lib/store';
-import { colors } from '../../lib/theme';
+import { colors, themedStyles } from '../../lib/theme';
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -68,7 +68,7 @@ export default function TransactionDetails() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   hero: { alignItems: 'center', gap: 8, paddingVertical: 24 },
   amount: { fontSize: 34, fontWeight: '800', marginTop: 6 },
   category: { fontSize: 16, color: colors.muted },
@@ -76,4 +76,4 @@ const s = StyleSheet.create({
   rowLabel: { fontSize: 14, color: colors.muted },
   rowValue: { flex: 1, textAlign: 'right', fontSize: 15, fontWeight: '600', color: colors.text },
   actions: { flexDirection: 'row', gap: 12, marginTop: 20 },
-});
+}));

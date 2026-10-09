@@ -4,7 +4,7 @@ import { Text } from '../components/Text';
 import { Card, EmptyState, Screen } from '../components/ui';
 import { monthLabel, number } from '../lib/format';
 import { inMonth, useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 
 export default function Chart() {
   const { txs, currency, month } = useStore();
@@ -55,7 +55,7 @@ export default function Chart() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   month: { fontSize: 18, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 16 },
   labels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   name: { fontSize: 15, fontWeight: '600', color: colors.text },
@@ -64,4 +64,4 @@ const s = StyleSheet.create({
   track: { height: 12, borderRadius: 6, backgroundColor: colors.skyTint, overflow: 'hidden' },
   fill: { height: 12, borderRadius: 6, backgroundColor: colors.sky },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-});
+}));

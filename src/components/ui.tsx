@@ -1,11 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, LayoutAnimation, Modal, Pressable, ScrollView, StyleSheet, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import { Text, TextInput } from './Text';
 import { MONTHS_SHORT, fmtDate, number } from '../lib/format';
 import { Icon } from './icon';
 import { useStore } from '../lib/store';
-import { colors, radius, shadow } from '../lib/theme';
+import { colors, radius, shadow, themedStyles } from '../lib/theme';
 import type { Transaction } from '../lib/types';
 
 export { Icon };
@@ -154,15 +155,48 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const [width, setWidth] = useState(0);
+  const index = Math.max(0, options.findIndex((o) => o.value === value));
+  const position = useRef(new Animated.Value(index)).current;
+
+  // Slide the highlight to the chosen option
+  useEffect(() => {
+    Animated.spring(position, { toValue: index, stiffness: 320, damping: 26, mass: 1, useNativeDriver: true }).start();
+  }, [index, position]);
+
+  const thumbWidth = width > 0 ? (width - SEG_PAD * 2) / options.length : 0;
+  const translateX = position.interpolate({
+    inputRange: options.map((_, i) => i),
+    outputRange: options.map((_, i) => i * thumbWidth),
+  });
+
   return (
-    <View style={s.segment}>
+    <View style={s.segment} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      {thumbWidth > 0 ? <Animated.View style={[s.segThumb, { width: thumbWidth, transform: [{ translateX }] }]} /> : null}
       {options.map((o) => (
-        <Pressable key={o.value} onPress={() => onChange(o.value)} style={[s.segItem, value === o.value && s.segActive]}>
+        <Pressable
+          key={o.value}
+          onPress={() => {
+            if (o.value === value) return;
+            Haptics.selectionAsync().catch(() => {});
+            onChange(o.value);
+          }}
+          style={s.segItem}
+          accessibilityRole="button"
+          accessibilityState={{ selected: value === o.value }}
+        >
           <Text style={[s.segText, value === o.value && { color: colors.skyDeep }]}>{o.label}</Text>
         </Pressable>
       ))}
     </View>
   );
+}
+
+const SEG_PAD = 4;
+
+/** Call right before a state change that adds or removes parts of a form, so the layout eases instead of jumping. */
+export function animateNext() {
+  LayoutAnimation.configureNext(LayoutAnimation.create(220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
 }
 
 export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress: () => void }) {
@@ -334,7 +368,7 @@ export function MonthPicker({
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   card: { backgroundColor: colors.card, borderRadius: radius.lg, padding: 16, ...shadow },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
@@ -348,7 +382,7 @@ const s = StyleSheet.create({
     gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderWidth: 1.5,
     borderColor: colors.skyDeep,
   },
@@ -377,9 +411,19 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   textInput: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: 12 },
-  segment: { flexDirection: 'row', backgroundColor: colors.field, borderRadius: radius.pill, padding: 4 },
+  segment: { flexDirection: 'row', backgroundColor: colors.field, borderRadius: radius.pill, padding: SEG_PAD },
+  segThumb: {
+    position: 'absolute',
+    top: SEG_PAD,
+    left: SEG_PAD,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
+    ...shadow,
+    shadowOpacity: 0.1,
+    elevation: 2,
+  },
   segItem: { flex: 1, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  segActive: { backgroundColor: colors.white, ...shadow, shadowOpacity: 0.08, elevation: 2 },
   segText: { fontSize: 14, fontWeight: '600', color: colors.muted },
   chip: { paddingHorizontal: 16, height: 38, borderRadius: radius.pill, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.skyDeep, borderColor: colors.skyDeep },
@@ -394,15 +438,15 @@ const s = StyleSheet.create({
   txSub: { fontSize: 12.5, color: colors.muted, marginTop: 2 },
   txAmount: { fontSize: 15, fontWeight: '700' },
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.35)' },
-  sheet: { backgroundColor: colors.white, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 32 },
+  sheet: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 32 },
   grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: 12 },
   sheetTitle: { fontSize: 17, fontWeight: '700', color: colors.text, textAlign: 'center', marginBottom: 12 },
   optRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, paddingHorizontal: 10, borderRadius: radius.md },
   optLabel: { flex: 1, fontSize: 15.5, fontWeight: '500', color: colors.text },
-  monthCard: { backgroundColor: colors.white, borderRadius: 28, padding: 20 },
+  monthCard: { backgroundColor: colors.card, borderRadius: 28, padding: 20 },
   yearRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 28, marginBottom: 12 },
   yearText: { fontSize: 20, fontWeight: '700', color: colors.text },
   monthGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   monthCell: { width: '30%', height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.field, marginBottom: 10 },
   monthText: { fontSize: 15, fontWeight: '600', color: colors.text },
-});
+}));

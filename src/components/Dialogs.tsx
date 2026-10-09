@@ -3,14 +3,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, shadow } from '../lib/theme';
+import { colors, radius, shadow, themedStyles } from '../lib/theme';
 import { Icon } from './icon';
 
 export interface ConfirmOptions {
   title: string;
   message?: string;
   confirmLabel?: string;
+  /** Small icon shown before the confirm label */
+  confirmIcon?: string;
   cancelLabel?: string;
+  /** A plain notice: shows only the confirm button */
+  single?: boolean;
   /** Red styling for destructive actions */
   danger?: boolean;
   icon?: string;
@@ -63,7 +67,7 @@ export function DialogHost() {
       <Modal visible={!!dialog} transparent animationType="fade" onRequestClose={() => close(false)}>
         <Pressable style={s.backdrop} onPress={() => close(false)}>
           <Pressable style={s.card}>
-            <View style={[s.iconWrap, danger && { backgroundColor: '#FDECEF' }]}>
+            <View style={[s.iconWrap, danger && { backgroundColor: colors.dangerTint }]}>
               <Icon
                 name={opts?.icon ?? (danger ? 'trash-outline' : 'help-circle-outline')}
                 size={30}
@@ -73,9 +77,11 @@ export function DialogHost() {
             <Text style={s.title}>{opts?.title}</Text>
             {opts?.message ? <Text style={s.message}>{opts.message}</Text> : null}
             <View style={s.actions}>
-              <Pressable onPress={() => close(false)} style={[s.btn, s.cancel]}>
-                <Text style={s.cancelText}>{opts?.cancelLabel ?? 'Cancel'}</Text>
-              </Pressable>
+              {opts?.single ? null : (
+                <Pressable onPress={() => close(false)} style={[s.btn, s.cancel]}>
+                  <Text style={s.cancelText}>{opts?.cancelLabel ?? 'Cancel'}</Text>
+                </Pressable>
+              )}
               <Pressable onPress={() => close(true)} style={s.btn}>
                 <LinearGradient
                   colors={danger ? ['#F57C93', colors.expense] : ['#7CC6F9', colors.skyDeep]}
@@ -83,7 +89,8 @@ export function DialogHost() {
                   end={{ x: 1, y: 1 }}
                   style={s.confirmFill}
                 >
-                  <Text style={s.confirmText}>{opts?.confirmLabel ?? 'OK'}</Text>
+                  {opts?.confirmIcon ? <Icon name={opts.confirmIcon} size={18} color={colors.white} /> : null}
+                  <Text style={s.confirmText} numberOfLines={1}>{opts?.confirmLabel ?? 'OK'}</Text>
                 </LinearGradient>
               </Pressable>
             </View>
@@ -103,9 +110,9 @@ export function DialogHost() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', alignItems: 'center', justifyContent: 'center', padding: 28 },
-  card: { width: '100%', maxWidth: 360, backgroundColor: colors.white, borderRadius: 28, padding: 24, alignItems: 'center', ...shadow },
+  card: { width: '100%', maxWidth: 360, backgroundColor: colors.card, borderRadius: 28, padding: 24, alignItems: 'center', ...shadow },
   iconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.skyTint, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   title: { fontSize: 19, fontWeight: '800', color: colors.text, textAlign: 'center' },
   message: { fontSize: 14.5, lineHeight: 21, color: colors.muted, textAlign: 'center', marginTop: 8 },
@@ -113,9 +120,9 @@ const s = StyleSheet.create({
   btn: { flex: 1, height: 50, borderRadius: radius.pill, overflow: 'hidden' },
   cancel: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.field, borderWidth: 1, borderColor: colors.border },
   cancelText: { fontSize: 15, fontWeight: '700', color: colors.text },
-  confirmFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  confirmFill: { flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   confirmText: { fontSize: 15, fontWeight: '700', color: colors.white },
   toastWrap: { position: 'absolute', left: 24, right: 24, alignItems: 'center' },
-  toast: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#0F2A43', paddingHorizontal: 18, height: 48, borderRadius: 24, maxWidth: '100%' },
+  toast: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.toast, paddingHorizontal: 18, height: 48, borderRadius: 24, maxWidth: '100%' },
   toastText: { color: colors.white, fontSize: 14.5, fontWeight: '600', flexShrink: 1 },
-});
+}));

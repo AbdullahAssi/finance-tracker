@@ -5,17 +5,17 @@ import { Card, PrimaryButton, Screen, toast } from '../components/ui';
 import { shareTextFile } from '../lib/files';
 import { todayISO } from '../lib/format';
 import { useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 
 export default function Backup() {
-  const { txs, categories, currency, lastBackup, setSettings } = useStore();
+  const { txs, categories, recurring, currency, lastBackup, setSettings } = useStore();
 
   const [busy, setBusy] = useState(false);
 
   const create = async () => {
     setBusy(true);
     try {
-      const payload = { app: 'expense-tracker', version: 1, exportedAt: new Date().toISOString(), currency, transactions: txs, categories };
+      const payload = { app: 'expense-tracker', version: 1, exportedAt: new Date().toISOString(), currency, transactions: txs, categories, recurring };
       await shareTextFile(`expense-backup-${todayISO()}.json`, JSON.stringify(payload, null, 2), 'application/json');
       setSettings({ lastBackup: Date.now() });
       toast('Backup created successfully.');
@@ -39,9 +39,9 @@ export default function Backup() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   text: { fontSize: 15, lineHeight: 22, color: colors.text },
   label: { fontSize: 13, color: colors.muted, marginTop: 10 },
   value: { fontSize: 16, fontWeight: '700', color: colors.text },
   hint: { fontSize: 13, color: colors.muted, marginTop: 4 },
-});
+}));

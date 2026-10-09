@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 
 /**
  * Branded loading screen. The logo sits exactly where the native splash draws it
@@ -23,7 +23,7 @@ export function Splash({ onReady }: { onReady?: () => void }) {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   fill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   logo: { width: 200, height: 200 },
   textBlock: { position: 'absolute', left: 0, right: 0, top: '50%', marginTop: 96, alignItems: 'center' },
@@ -31,4 +31,4 @@ const s = StyleSheet.create({
   tag: { fontSize: 14, color: 'rgba(255,255,255,0.88)', marginTop: 4 },
   loader: { position: 'absolute', bottom: 64, alignItems: 'center', gap: 10 },
   status: { fontSize: 13, color: 'rgba(255,255,255,0.88)' },
-});
+}));

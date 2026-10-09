@@ -4,15 +4,12 @@ import { FONT, Text } from './Text';
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { compact, niceMax, type MonthPoint, type Slice } from '../lib/analytics';
 import { number } from '../lib/format';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 import { Segmented } from './ui';
 
-const AXIS_INK = '#8A97A9';
-const GRID = '#E9EFF6';
 
 /** Blue ramp, darkest = largest. Magnitude is carried by lightness, names/values by the legend. */
 export const SLICE_COLORS = ['#1D5FBF', '#2B7DE9', '#4BA3F2', '#7CC0F7', '#A9D8FB'];
-const OTHER_COLOR = '#C5CFDB';
 
 function useWidth() {
   const [width, setWidth] = useState(0);
@@ -84,11 +81,11 @@ export function TrendChart({
       <View style={s.headRow}>
         <View style={{ flex: 1 }}>
           <Text style={s.caption}>{caption}</Text>
-          <Text style={s.headline}>
+          <Text style={s.headline} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             {currency} {number(headline)}
           </Text>
         </View>
-        <View style={{ width: 170 }}>
+        <View style={{ width: 150 }}>
           <Segmented
             options={[
               { label: 'Daily', value: 'daily' },
@@ -123,15 +120,15 @@ export function TrendChart({
             </Defs>
             {[0, 0.5, 1].map((f) => (
               <G key={f}>
-                <Line x1={T_PAD.l} x2={width - T_PAD.r} y1={y(max * f)} y2={y(max * f)} stroke={GRID} strokeWidth={1} />
-                <SvgText x={T_PAD.l - 8} y={y(max * f) + 4} fontSize={11} fontFamily={FONT.regular} fill={AXIS_INK} textAnchor="end">
+                <Line x1={T_PAD.l} x2={width - T_PAD.r} y1={y(max * f)} y2={y(max * f)} stroke={colors.grid} strokeWidth={1} />
+                <SvgText x={T_PAD.l - 8} y={y(max * f) + 4} fontSize={11} fontFamily={FONT.regular} fill={colors.axis} textAnchor="end">
                   {compact(max * f)}
                 </SvgText>
               </G>
             ))}
             {Array.from({ length: days }, (_, i) =>
               i % 7 === 0 ? (
-                <SvgText key={i} x={x(i)} y={T_HEIGHT - 6} fontSize={11} fontFamily={FONT.regular} fill={AXIS_INK} textAnchor="middle">
+                <SvgText key={i} x={x(i)} y={T_HEIGHT - 6} fontSize={11} fontFamily={FONT.regular} fill={colors.axis} textAnchor="middle">
                   {i + 1}
                 </SvgText>
               ) : null,
@@ -154,14 +151,14 @@ export function TrendChart({
               <Path d={line} stroke={colors.skyDeep} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
             )}
             {mode === 'cumulative' && n > 0 && active === null && (
-              <Circle cx={x(n - 1)} cy={y(series[n - 1])} r={5} fill={colors.skyDeep} stroke={colors.white} strokeWidth={2} />
+              <Circle cx={x(n - 1)} cy={y(series[n - 1])} r={5} fill={colors.skyDeep} stroke={colors.card} strokeWidth={2} />
             )}
 
             {active !== null && (
               <G>
                 <Line x1={x(active)} x2={x(active)} y1={T_PAD.t} y2={y(0)} stroke={colors.skyDeep} strokeOpacity={0.3} strokeWidth={1} />
                 {mode === 'cumulative' && (
-                  <Circle cx={x(active)} cy={y(series[active])} r={5} fill={colors.skyDeep} stroke={colors.white} strokeWidth={2} />
+                  <Circle cx={x(active)} cy={y(series[active])} r={5} fill={colors.skyDeep} stroke={colors.card} strokeWidth={2} />
                 )}
               </G>
             )}
@@ -235,8 +232,8 @@ export function IncomeExpenseChart({ data, currency }: { data: MonthPoint[]; cur
           <Svg width={width} height={B_HEIGHT} pointerEvents="none">
             {[0, 0.5, 1].map((f) => (
               <G key={f}>
-                <Line x1={B_PAD.l} x2={width - B_PAD.r} y1={y(max * f)} y2={y(max * f)} stroke={GRID} strokeWidth={1} />
-                <SvgText x={B_PAD.l - 8} y={y(max * f) + 4} fontSize={11} fontFamily={FONT.regular} fill={AXIS_INK} textAnchor="end">
+                <Line x1={B_PAD.l} x2={width - B_PAD.r} y1={y(max * f)} y2={y(max * f)} stroke={colors.grid} strokeWidth={1} />
+                <SvgText x={B_PAD.l - 8} y={y(max * f) + 4} fontSize={11} fontFamily={FONT.regular} fill={colors.axis} textAnchor="end">
                   {compact(max * f)}
                 </SvgText>
               </G>
@@ -251,7 +248,7 @@ export function IncomeExpenseChart({ data, currency }: { data: MonthPoint[]; cur
                   {i === sel && <Rect x={cx - groupW / 2 + 2} y={B_PAD.t} width={groupW - 4} height={plotH} rx={10} fill={colors.skyTint} opacity={0.7} />}
                   {d.income > 0 && <Path d={topRounded(cx - barW - 1, y(d.income), barW, ih, 4)} fill={colors.income} opacity={dim} />}
                   {d.expense > 0 && <Path d={topRounded(cx + 1, y(d.expense), barW, eh, 4)} fill={colors.expense} opacity={dim} />}
-                  <SvgText x={cx} y={B_HEIGHT - 6} fontSize={11} fill={i === sel ? colors.text : AXIS_INK} fontFamily={i === sel ? FONT.bold : FONT.regular} textAnchor="middle">
+                  <SvgText x={cx} y={B_HEIGHT - 6} fontSize={11} fill={i === sel ? colors.text : colors.axis} fontFamily={i === sel ? FONT.bold : FONT.regular} textAnchor="middle">
                     {d.label}
                   </SvgText>
                 </G>
@@ -272,7 +269,7 @@ const D_SIZE = 168;
 const D_STROKE = 24;
 
 export function sliceColor(i: number, name: string) {
-  return name === 'Other categories' ? OTHER_COLOR : SLICE_COLORS[i % SLICE_COLORS.length];
+  return name === 'Other categories' ? colors.other : SLICE_COLORS[i % SLICE_COLORS.length];
 }
 
 export function DonutChart({ slices, currency }: { slices: Slice[]; currency: string }) {
@@ -287,7 +284,7 @@ export function DonutChart({ slices, currency }: { slices: Slice[]; currency: st
       <View style={s.donutWrap}>
         <Svg width={D_SIZE} height={D_SIZE}>
           <Circle cx={D_SIZE / 2} cy={D_SIZE / 2} r={r} stroke={colors.skyTint} strokeWidth={D_STROKE} fill="none" />
-          <G rotation={-90} origin={`${D_SIZE / 2}, ${D_SIZE / 2}`}>
+          <G transform={`rotate(-90 ${D_SIZE / 2} ${D_SIZE / 2})`}>
             {slices.map((sl, i) => {
               const len = (sl.value / total) * circ;
               const dash = Math.max(len - gap, 0.5);
@@ -336,11 +333,11 @@ export function DonutChart({ slices, currency }: { slices: Slice[]; currency: st
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   headRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   caption: { fontSize: 12.5, color: colors.muted },
-  headline: { fontSize: 22, fontWeight: '800', color: colors.text, marginTop: 2 },
-  hint: { fontSize: 12, color: AXIS_INK, textAlign: 'center', marginTop: 6 },
+  headline: { fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 2 },
+  hint: { fontSize: 12, color: colors.axis, textAlign: 'center', marginTop: 6 },
   legendRow: { flexDirection: 'row', gap: 16, marginBottom: 10 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   swatch: { width: 10, height: 10, borderRadius: 3 },
@@ -354,4 +351,4 @@ const s = StyleSheet.create({
   legendName: { flex: 1, fontSize: 14.5, fontWeight: '600', color: colors.text },
   legendPct: { fontSize: 13, color: colors.muted, width: 40, textAlign: 'right' },
   legendAmount: { fontSize: 14.5, fontWeight: '700', color: colors.text, minWidth: 92, textAlign: 'right' },
-});
+}));

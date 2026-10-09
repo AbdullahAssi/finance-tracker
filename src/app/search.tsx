@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Card, EmptyState, TextField, TxRow } from '../components/ui';
 import { newestFirst, useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 
 export default function Search() {
   const { txs } = useStore();
@@ -42,6 +42,6 @@ export default function Search() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-});
+}));

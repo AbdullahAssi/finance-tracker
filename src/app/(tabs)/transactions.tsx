@@ -7,7 +7,7 @@ import { applyFilters, hasActiveFilters, RANGE_LABELS } from '../../lib/filter';
 import { addDays, fmtLongDate, monthLabel, todayISO } from '../../lib/format';
 import { newestFirst, useStore } from '../../lib/store';
 import { usePullSync } from '../../lib/usePullSync';
-import { colors, radius } from '../../lib/theme';
+import { colors, radius, themedStyles } from '../../lib/theme';
 
 function dayTitle(date: string) {
   const today = todayISO();
@@ -90,15 +90,15 @@ export default function Transactions() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingTop: 4 },
   monthBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   monthText: { fontSize: 17, fontWeight: '700', color: colors.text },
-  iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  iconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.card, alignItems: 'center', justifyContent: 'center' },
   dot: { position: 'absolute', top: 9, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.expense },
   chips: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
   sectionHeader: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8, color: colors.muted, marginTop: 14, marginBottom: 8 },
-  itemWrap: { backgroundColor: colors.white, paddingHorizontal: 14 },
+  itemWrap: { backgroundColor: colors.card, paddingHorizontal: 14 },
   itemFirst: { borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, paddingTop: 4 },
   itemLast: { borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, paddingBottom: 4 },
-});
+}));

@@ -5,7 +5,7 @@ import { Text } from '../components/Text';
 import { Card, Icon, PrimaryButton, Screen } from '../components/ui';
 import { CURRENCIES } from '../lib/constants';
 import { useStore } from '../lib/store';
-import { colors } from '../lib/theme';
+import { colors, themedStyles } from '../lib/theme';
 
 export default function Currency() {
   const { currency, setSettings } = useStore();
@@ -37,10 +37,10 @@ export default function Currency() {
   );
 }
 
-const s = StyleSheet.create({
+const s = themedStyles(() => StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 13 },
   border: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   code: { fontSize: 16, fontWeight: '700', color: colors.text },
   name: { fontSize: 13, color: colors.muted },
   hint: { fontSize: 13, color: colors.muted, marginTop: 12, lineHeight: 18 },
-});
+}));
